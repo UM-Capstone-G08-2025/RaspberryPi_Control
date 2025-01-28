@@ -1,115 +1,98 @@
-# Python Script
-# https://www.electronicshub.org/raspberry-pi-l298n-interface-tutorial-control-dc-motor-l298n-raspberry-
+import RPi.GPIO as GPIO
+import time
 
-# TO DO - Modify code to work for all wheels
-import RPi.GPIO as GPIO          
-from time import sleep
+# Define GPIO pins for the motor driver
+LEFT_MOTOR_FORWARD = 19 #brown wire
+LEFT_MOTOR_BACKWARD = 26 #orange wire
+RIGHT_MOTOR_FORWARD = 13 #green wire
+RIGHT_MOTOR_BACKWARD = 6 #blue wire
 
-in1_1 = 12
-in2_1 = 16
-in1_2 = 18
-in2_2 = 23
-in3_1 = 20
-in4_1 = 21
-in3_2 = 24
-in4_2 = 25
-en = 25
-temp1=1
+def setup():
+    """
+    Configure GPIO pins for motor control.
+    """
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setwarnings(False)
+    GPIO.setup(LEFT_MOTOR_FORWARD, GPIO.OUT)
+    GPIO.setup(LEFT_MOTOR_BACKWARD, GPIO.OUT)
+    GPIO.setup(RIGHT_MOTOR_FORWARD, GPIO.OUT)
+    GPIO.setup(RIGHT_MOTOR_BACKWARD, GPIO.OUT)
+    GPIO.output(LEFT_MOTOR_BACKWARD,GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_FORWARD,GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_BACKWARD,GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_FORWARD,GPIO.LOW)
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(in1_1,GPIO.OUT)
-GPIO.setup(in2_1,GPIO.OUT)
-GPIO.setup(in1_2,GPIO.OUT)
-GPIO.setup(in2_2,GPIO.OUT)
-GPIO.setup(in3_1,GPIO.OUT)
-GPIO.setup(in4_1,GPIO.OUT)
-GPIO.setup(in3_2,GPIO.OUT)
-GPIO.setup(in4_2,GPIO.OUT)
-p=GPIO.PWM(en,1000)
+def move_forward(duration):
+    """
+    Move the robot forward for a specified duration.
+    """
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
+    time.sleep(duration)
+    stop()
 
-p.start(25)
-print("\n")
-print("The default speed & direction of motor is LOW & Forward.....")
-print("r-run s-stop f-forward b-backward l-low m-medium h-high e-exit")
-print("\n")    
+def move_backward(duration):
+    """
+    Move the robot backward for a specified duration.
+    """
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
+    time.sleep(duration)
+    stop()
 
-while(1):
+def turn_left(duration):
+    """
+    Turn the robot left for a specified duration.
+    """
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
+    time.sleep(duration)
+    stop()
 
-    x=input()
-    
-    if x=='r':
-        print("run")
-        if(temp1==1):
-         GPIO.output(in1_1,GPIO.HIGH)
-         GPIO.output(in2_1,GPIO.LOW)
-         GPIO.output(in1_2,GPIO.HIGH)
-         GPIO.output(in2_2,GPIO.LOW)
-         GPIO.output(in3_1,GPIO.HIGH)
-         GPIO.output(in4_1,GPIO.LOW)
-         GPIO.output(in3_2,GPIO.HIGH)
-         GPIO.output(in4_2,GPIO.LOW)
-         print("forward")
-         x='z'
-        else:
-         GPIO.output(in1_1,GPIO.LOW)
-         GPIO.output(in2_1,GPIO.HIGH)
-         GPIO.output(in1_2,GPIO.LOW)
-         GPIO.output(in2_2,GPIO.HIGH)
-         GPIO.output(in3_1,GPIO.LOW)
-         GPIO.output(in4_1,GPIO.HIGH)
-         GPIO.output(in3_2,GPIO.LOW)
-         GPIO.output(in4_2,GPIO.HIGH)
-         print("backward")
-         x='z'
+def turn_right(duration):
+    """
+    Turn the robot right for a specified duration.
+    """
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
+    time.sleep(duration)
+    stop()
+
+def stop():
+    """
+    Stop all motors.
+    """
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
 
 
-    elif x=='s':
-        print("stop")
-        GPIO.output(in1_1,GPIO.LOW)
-        GPIO.output(in2_1,GPIO.LOW)
-        GPIO.output(in1_2,GPIO.LOW)
-        GPIO.output(in2_2,GPIO.LOW)
-        GPIO.output(in3_1,GPIO.LOW)
-        GPIO.output(in4_1,GPIO.LOW)
-        GPIO.output(in3_2,GPIO.LOW)
-        GPIO.output(in4_2,GPIO.LOW)
-        x='z'
+def cleanup():
+    """
+    Clean up GPIO pins.
+    """
+    GPIO.cleanup()
 
-    # elif x=='f':
-        # print("forward")
-        # GPIO.output(in1,GPIO.HIGH)
-        # GPIO.output(in2,GPIO.LOW)
-        # temp1=1
-        # x='z'
-
-    # elif x=='b':
-        # print("backward")
-        # GPIO.output(in1,GPIO.LOW)
-        # GPIO.output(in2,GPIO.HIGH)
-        # temp1=0
-        # x='z'
-
-    # elif x=='l':
-        # print("low")
-        # p.ChangeDutyCycle(25)
-        # x='z'
-
-    # elif x=='m':
-        # print("medium")
-        # p.ChangeDutyCycle(50)
-        # x='z'
-
-    # elif x=='h':
-        # print("high")
-        # p.ChangeDutyCycle(75)
-        # x='z'
-     
-    
-    elif x=='e':
-        GPIO.cleanup()
-        print("GPIO Clean up")
-        break
-    
-    else:
-        print("<<<  wrong data  >>>")
-        print("please enter the defined data to continue.....")
+if __name__ == "__main__":
+    setup()
+    try:
+        move_forward(2)
+        time.sleep(1)
+        move_backward(2)
+        time.sleep(1)
+        turn_left(1)
+        time.sleep(1)
+        turn_right(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        cleanup()
