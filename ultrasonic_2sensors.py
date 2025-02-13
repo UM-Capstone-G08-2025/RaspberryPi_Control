@@ -7,7 +7,7 @@ GPIO.setmode(GPIO.BCM)
 # Define GPIO pins for sensors
 TRIG_LEFT = 23
 ECHO_LEFT = 24
-TRIG_RIGHT = 16
+TRIG_RIGHT = 8
 ECHO_RIGHT = 25
 
 DELAY_TIME = 0.2  # seconds
