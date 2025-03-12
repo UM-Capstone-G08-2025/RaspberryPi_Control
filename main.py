@@ -2,19 +2,20 @@ import serial
 import RPi.GPIO as GPIO
 import time
 import threading
-from picamera2 import Picamera2
-from libcamera import controls
-import os
+#from picamera2 import Picamera2
+#from libcamera import controls
+#import os
+from legControl import LegControl
 
 # Setup GPIO using BCM numbering for motor control
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
 # Define GPIO pins for the motor driver (wheel system)
-LEFT_MOTOR_FORWARD = 19  # brown wire
-LEFT_MOTOR_BACKWARD = 26  # orange wire
-RIGHT_MOTOR_FORWARD = 13  # green wire
-RIGHT_MOTOR_BACKWARD = 6  # blue wire
+LEFT_MOTOR_BACKWARD = 19 #brown wire
+LEFT_MOTOR_FORWARD = 26 #orange wire
+RIGHT_MOTOR_FORWARD = 13 #green wire
+RIGHT_MOTOR_BACKWARD = 6 #blue wire
 
 # Define GPIO pins for the ultrasonic sensors
 TRIG_LEFT = 23
@@ -53,11 +54,11 @@ GPIO.setup(BLUE_LED, GPIO.OUT)
 GPIO.setup(GREEN_LED, GPIO.OUT)
 
 # Initialize the camera
-picam2 = Picamera2()
-os.system("v4l2-ctl --set-ctrl wide_dynamic_range=1 -d /dev/v4l-subdev0")
-print("Setting HDR to ON")
-picam2.start(show_preview=False)  # Disable preview to save resources
-picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
+# picam2 = Picamera2()
+# os.system("v4l2-ctl --set-ctrl wide_dynamic_range=1 -d /dev/v4l-subdev0")
+# print("Setting HDR to ON")
+# picam2.start(show_preview=False)  # Disable preview to save resources
+# picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
 
 # Setup serial communication for UART
 try:
@@ -71,6 +72,9 @@ except serial.SerialException as e:
 intruder_detected = False  # intruder detection variable
 mode_lock = threading.Lock()  # Lock for thread-safe mode switching
 wheel_mode = True  # Default mode is wheel mode
+
+# Initialize leg control
+leg_control = LegControl()
 
 def read_data():
     """
@@ -122,64 +126,63 @@ def get_distance(trig, echo):
 # Non-blocking wheel movement functions
 def move_forward(duration):
     """
-    Move the robot forward for a specified duration (wheel system).
+    Move the robot forward for a specified duration.
     """
-    def _move_forward():
-        GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
-        GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
-        GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
-        GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
-        time.sleep(duration)
-        stop()
-    threading.Thread(target=_move_forward, daemon=True).start()
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
+    time.sleep(duration)
+    stop()
 
 def move_backward(duration):
     """
-    Move the robot backward for a specified duration (wheel system).
+    Move the robot backward for a specified duration.
     """
-    def _move_backward():
-        GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
-        GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
-        GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
-        GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
-        time.sleep(duration)
-        stop()
-    threading.Thread(target=_move_backward, daemon=True).start()
-
-def turn_left(duration):
-    """
-    Turn the robot left for a specified duration (wheel system).
-    """
-    def _turn_left():
-        GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
-        GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
-        GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
-        GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
-        time.sleep(duration)
-        stop()
-    threading.Thread(target=_turn_left, daemon=True).start()
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
+    time.sleep(duration)
+    stop()
 
 def turn_right(duration):
     """
-    Turn the robot right for a specified duration (wheel system).
+    Turn the robot left for a specified duration.
     """
-    def _turn_right():
-        GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
-        GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
-        GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
-        GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
-        time.sleep(duration)
-        stop()
-    threading.Thread(target=_turn_right, daemon=True).start()
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
+    time.sleep(duration)
+    stop()
+
+def turn_left(duration):
+    """
+    Turn the robot right for a specified duration.
+    """
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
+    GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
+    time.sleep(duration)
+    stop()
 
 def stop():
     """
-    Stop all motors (wheel system).
+    Stop all motors.
     """
     GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
     GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
     GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
     GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
+
+def cleanup():
+    """
+    Clean up GPIO pins.
+    """
+    GPIO.cleanup()
+    leg_control.disconnect()
 
 def take_picture():
     """
@@ -193,58 +196,39 @@ def leg_walk_forward(duration):
     """
     Move the robot forward using legs.
     """
-    def _leg_walk_forward():
-        print("Legs: Walking forward.")
-        time.sleep(duration)  # Simulate walking forward
-        leg_stop()
-    threading.Thread(target=_leg_walk_forward, daemon=True).start()
+    leg_control.animationWalk()
+    time.sleep(duration)
+    leg_control.animationStand()
 
 def leg_walk_backward(duration):
     """
     Move the robot backward using legs.
     """
-    def _leg_walk_backward():
-        print("Legs: Walking backward.")
-        time.sleep(duration)  # Simulate walking backward
-        leg_stop()
-    threading.Thread(target=_leg_walk_backward, daemon=True).start()
+    leg_control.animationWalk()
+    time.sleep(duration)
+    leg_control.animationStand()
 
 def leg_turn_left(duration):
     """
     Turn the robot left using legs.
     """
-    def _leg_turn_left():
-        print("Legs: Turning left.")
-        time.sleep(duration)  # Simulate turning left
-        leg_stop()
-    threading.Thread(target=_leg_turn_left, daemon=True).start()
+    leg_control.animationTurnLeft()
+    time.sleep(duration)
+    leg_control.animationStand()
 
 def leg_turn_right(duration):
     """
     Turn the robot right using legs.
     """
-    def _leg_turn_right():
-        print("Legs: Turning right.")
-        time.sleep(duration)  # Simulate turning right
-        leg_stop()
-    threading.Thread(target=_leg_turn_right, daemon=True).start()
+    leg_control.animationTurnRight()
+    time.sleep(duration)
+    leg_control.animationStand()
 
 def leg_stop():
     """
     Stop leg movement.
     """
-    print("Legs: Stopping.")
-    # Add logic to stop leg movement
-
-def cleanup():
-    """
-    Clean up GPIO pins and stop the camera.
-    """
-    GPIO.cleanup()
-    picam2.stop_preview()
-    picam2.stop()
-    os.system("v4l2-ctl --set-ctrl wide_dynamic_range=0 -d /dev/v4l-subdev0")
-    print("Setting HDR to OFF")
+    leg_control.animationStand()
 
 def follow_bounding_box(x, y, width, height):
     """
@@ -274,7 +258,7 @@ def follow_bounding_box(x, y, width, height):
             if wheel_mode:
                 move_backward(0.3)
             else:
-                leg_walk_backward(0.3)
+                leg_turn_left(0.3)
         else:
             print("Object centered, moving forward.")
             if wheel_mode:
@@ -302,7 +286,7 @@ def read_uart_data():
                 if obj_class == "intruder":
                     follow_bounding_box(x, y, width, height)
                     intruder_detected = True  # Set the flag
-                    take_picture()  # Take a picture when an intruder is detected
+                    #take_picture()  # Take a picture when an intruder is detected
 
             last_check_time = current_time
 
@@ -327,7 +311,7 @@ def read_ultrasonic_data():
                     print(f"Left: {left_cm} cm | Right: {right_cm} cm")
 
                     # Avoid obstacles based on sensor data
-                    if left_cm <= 10 or right_cm <= 10:
+                    if left_cm <= 20 or right_cm <= 20:
                         print("Object too close, turning to avoid obstacle.")
                         if wheel_mode:
                             turn_right(0.6)
@@ -335,25 +319,39 @@ def read_ultrasonic_data():
                             leg_turn_right(0.6)
 
             last_check_time = current_time
+def leg_control_update():
+	while True:
+		with mode_lock:
+			if not wheel_mode:
+				leg_control.update()
+		time.sleep(0.01)
 
 def toggle_switch_control():
     """
     Control the robot based on the toggle switch state.
     """
     global wheel_mode
+    previous_mode = wheel_mode  # Track the previous mode to detect changes
     while True:
         if GPIO.input(TOGGLE_SWITCH) == 0:
             GPIO.output(BLUE_LED, GPIO.HIGH)
             GPIO.output(GREEN_LED, GPIO.LOW)
             with mode_lock:
                 wheel_mode = True
-            print("Wheel mode activated.")
+                if previous_mode != wheel_mode:
+                    leg_control.disconnect()
+                    print("Wheel mode activated.")
         else:
             GPIO.output(BLUE_LED, GPIO.LOW)
             GPIO.output(GREEN_LED, GPIO.HIGH)
             with mode_lock:
                 wheel_mode = False
-            print("Leg mode activated.")
+                if previous_mode != wheel_mode:
+                    leg_control.connect()
+                    leg_stop()
+                    time.sleep(1)
+                    print("Leg mode activated.")
+        previous_mode = wheel_mode  # Update the previous mode
         time.sleep(0.1)
 
 def main():
@@ -361,17 +359,20 @@ def main():
     uart_thread = threading.Thread(target=read_uart_data, daemon=True)
     ultrasonic_thread = threading.Thread(target=read_ultrasonic_data, daemon=True)
     toggle_thread = threading.Thread(target=toggle_switch_control, daemon=True)
+    leg_update_thread = threading.Thread(target=leg_control_update, daemon=True)
 
     # Start the threads
     uart_thread.start()
     ultrasonic_thread.start()
     toggle_thread.start()
+    leg_update_thread.start()
 
     try:
         # Keep the main thread running while the others handle their tasks
         uart_thread.join()
         ultrasonic_thread.join()
         toggle_thread.join()
+        leg_control_update.join()
     except KeyboardInterrupt:
         print("Exiting program...")
     finally:
