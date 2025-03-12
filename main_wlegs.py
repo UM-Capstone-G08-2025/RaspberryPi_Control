@@ -319,6 +319,12 @@ def read_ultrasonic_data():
                             leg_turn_right(0.6)
 
             last_check_time = current_time
+def leg_control_update():
+	while True:
+		with mode_lock:
+			if not wheel_mode:
+				leg_control.update()
+		time.sleep(0.01)
 
 def toggle_switch_control():
     """
@@ -346,18 +352,8 @@ def toggle_switch_control():
         previous_mode = wheel_mode  # Update the previous mode
         time.sleep(0.1)
 
-def leg_control_update():
-    """
-    Continuously updates the leg control system to animate the legs.
-    """
-    while True:
-        with mode_lock:
-            if not wheel_mode:
-                leg_control.update()
-        time.sleep(0.01)  # Small delay to prevent excessive CPU usage
-
 def main():
-    # Create threads for UART, ultrasonic data reading, toggle switch control, and leg control update
+    # Create threads for UART, ultrasonic data reading, and toggle switch control
     uart_thread = threading.Thread(target=read_uart_data, daemon=True)
     ultrasonic_thread = threading.Thread(target=read_ultrasonic_data, daemon=True)
     toggle_thread = threading.Thread(target=toggle_switch_control, daemon=True)
@@ -374,8 +370,11 @@ def main():
         uart_thread.join()
         ultrasonic_thread.join()
         toggle_thread.join()
-        leg_update_thread.join()
+        leg_control_update.join()
     except KeyboardInterrupt:
         print("Exiting program...")
     finally:
         cleanup()
+
+if __name__ == "__main__":
+    main()
