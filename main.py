@@ -128,9 +128,9 @@ def move_forward(duration):
     """
     Move the robot forward for a specified duration.
     """
-    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
     GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
-    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
     GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
     time.sleep(duration)
     stop()
@@ -139,9 +139,9 @@ def move_backward(duration):
     """
     Move the robot backward for a specified duration.
     """
-    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
     GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
-    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
     GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
     time.sleep(duration)
     stop()
@@ -150,9 +150,9 @@ def turn_right(duration):
     """
     Turn the robot left for a specified duration.
     """
-    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
     GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.LOW)
-    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
     GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.HIGH)
     time.sleep(duration)
     stop()
@@ -161,10 +161,11 @@ def turn_left(duration):
     """
     Turn the robot right for a specified duration.
     """
-    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.HIGH)
+    GPIO.output(LEFT_MOTOR_FORWARD, GPIO.LOW)
     GPIO.output(RIGHT_MOTOR_FORWARD, GPIO.HIGH)
-    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.LOW)
+    GPIO.output(LEFT_MOTOR_BACKWARD, GPIO.HIGH)
     GPIO.output(RIGHT_MOTOR_BACKWARD, GPIO.LOW)
+
     time.sleep(duration)
     stop()
 
@@ -197,8 +198,8 @@ def leg_walk_forward(duration):
     Move the robot forward using legs.
     """
     leg_control.animationWalk()
-    time.sleep(duration)
-    leg_control.animationStand()
+    #time.sleep(duration)
+    #leg_control.animationStand()
 
 def leg_walk_backward(duration):
     """
@@ -213,16 +214,16 @@ def leg_turn_left(duration):
     Turn the robot left using legs.
     """
     leg_control.animationTurnLeft()
-    time.sleep(duration)
-    leg_control.animationStand()
+    #time.sleep(duration)
+    #leg_control.animationStand()
 
 def leg_turn_right(duration):
     """
     Turn the robot right using legs.
     """
     leg_control.animationTurnRight()
-    time.sleep(duration)
-    leg_control.animationStand()
+    #time.sleep(duration)
+    #leg_control.animationStand()
 
 def leg_stop():
     """
@@ -275,6 +276,7 @@ def read_uart_data():
     check_interval = 0.1  # Check every 0.1 seconds
 
     while True:
+        intruder_detected = False
         current_time = time.time()
         if current_time - last_check_time >= check_interval:
             uart_data = read_data()
@@ -314,10 +316,10 @@ def read_ultrasonic_data():
                     if left_cm <= 20 or right_cm <= 20:
                         print("Object too close, turning to avoid obstacle.")
                         if wheel_mode:
-                            turn_right(0.6)
+                            turn_right(1)
                         else:
-                            leg_turn_right(0.6)
-
+                            leg_turn_right(1)
+                            
             last_check_time = current_time
 def leg_control_update():
 	while True:
