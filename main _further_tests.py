@@ -123,28 +123,34 @@ def get_distance(trig, echo):
     distance_inch = distance_cm * 0.3937
     return round(distance_cm, 1), round(distance_inch, 1)
 def get_distance(trig, echo):
-    """
-    Measure distance using ultrasonic sensor with non-blocking edge detection.
-    Returns (distance_cm, distance_inch) or (None, None) on timeout.
-    """
+    """Measure distance with non-blocking timeout handling."""
     GPIO.output(trig, True)
     time.sleep(0.00001)
     GPIO.output(trig, False)
 
-    # Wait for rising edge (echo start) with timeout
-    if GPIO.wait_for_edge(echo, GPIO.RISING, timeout=int(TIMEOUT * 1000)) is None:
-        return (None, None)
+    # Wait for echo to go HIGH with timeout
+    timeout_start = time.time()
+    while GPIO.input(echo) == 0:
+        if time.time() - timeout_start > TIMEOUT:
+            return (None, None)
+        time.sleep(0.0001)  # Tiny sleep to yield CPU
+
     start_time = time.time()
+    
+    # Wait for echo to go LOW with timeout
+    timeout_start = time.time()
+    while GPIO.input(echo) == 1:
+        if time.time() - timeout_start > TIMEOUT:
+            return (None, None)
+        time.sleep(0.0001)  # Tiny sleep to yield CPU
 
-    # Wait for falling edge (echo end) with timeout
-    if GPIO.wait_for_edge(echo, GPIO.FALLING, timeout=int(TIMEOUT * 1000)) is None:
-        return (None, None)
     end_time = time.time()
+    
+    pulse_duration = end_time - start_time
+    distance_cm = round((pulse_duration * 34300) / 2, 1)
+    distance_inch = round(distance_cm * 0.3937, 1)
+    return (distance_cm, distance_inch)
 
-    travel_time = end_time - start_time
-    distance_cm = (travel_time * 34300) / 2  # Calculate distance in cm
-    distance_inch = distance_cm * 0.3937     # Convert to inches
-    return (round(distance_cm, 1), round(distance_inch, 1))
 # Non-blocking wheel movement functions
 def move_forward(duration):
     """
