@@ -72,7 +72,6 @@ except serial.SerialException as e:
 intruder_detected = False  # intruder detection variable
 mode_lock = threading.Lock()  # Lock for thread-safe mode switching
 wheel_mode = True  # Default mode is wheel mode
-current_movement_state = None
 
 # Initialize leg control
 leg_control = LegControl()
@@ -123,7 +122,29 @@ def get_distance(trig, echo):
     distance_cm = (travel_time * 34300) / 2  # 343 m/s = 34300 cm/s
     distance_inch = distance_cm * 0.3937
     return round(distance_cm, 1), round(distance_inch, 1)
+def get_distance(trig, echo):
+    """
+    Measure distance using ultrasonic sensor with non-blocking edge detection.
+    Returns (distance_cm, distance_inch) or (None, None) on timeout.
+    """
+    GPIO.output(trig, True)
+    time.sleep(0.00001)
+    GPIO.output(trig, False)
 
+    # Wait for rising edge (echo start) with timeout
+    if GPIO.wait_for_edge(echo, GPIO.RISING, timeout=int(TIMEOUT * 1000)) is None:
+        return (None, None)
+    start_time = time.time()
+
+    # Wait for falling edge (echo end) with timeout
+    if GPIO.wait_for_edge(echo, GPIO.FALLING, timeout=int(TIMEOUT * 1000)) is None:
+        return (None, None)
+    end_time = time.time()
+
+    travel_time = end_time - start_time
+    distance_cm = (travel_time * 34300) / 2  # Calculate distance in cm
+    distance_inch = distance_cm * 0.3937     # Convert to inches
+    return (round(distance_cm, 1), round(distance_inch, 1))
 # Non-blocking wheel movement functions
 def move_forward(duration):
     """
@@ -232,27 +253,6 @@ def leg_stop():
     """
     leg_control.animationStand()
 
-def update_leg_movement_state(new_state, duration=None):
-    """
-    Update the leg movement state and trigger the corresponding animation if the state changes.
-    """
-    global current_movement_state
-    if current_movement_state != new_state:
-        current_movement_state = new_state
-        if new_state == "walk_forward":
-            leg_control.animationWalk()
-        elif new_state == "walk_backward":
-            leg_control.animationWalk()
-        elif new_state == "turn_left":
-            leg_control.animationTurnLeft()
-        elif new_state == "turn_right":
-            leg_control.animationTurnRight()
-        elif new_state == "stop":
-            leg_control.animationStand()
-        if duration:
-            time.sleep(duration)
-            current_movement_state = None  # Reset state after the duration
-
 def follow_bounding_box(x, y, width, height):
     """
     Adjust movement based on bounding box coordinates.
@@ -268,26 +268,26 @@ def follow_bounding_box(x, y, width, height):
             if wheel_mode:
                 turn_left(0.3)
             else:
-                update_leg_movement_state("turn_left", duration=0.3)
+                leg_turn_left(0.3)
         else:
             print("Object to the right, turning right.")
             if wheel_mode:
                 turn_right(0.3)
             else:
-                update_leg_movement_state("turn_right", duration=0.3)
+                leg_turn_right(0.3)
     else:
         if area > 50000:  # Example threshold for area
             print("Object is close, moving backward.")
             if wheel_mode:
                 move_backward(0.3)
             else:
-                update_leg_movement_state("walk_backward", duration=0.3)
+                leg_turn_left(0.3)
         else:
             print("Object centered, moving forward.")
             if wheel_mode:
                 move_forward(0.3)
             else:
-                update_leg_movement_state("walk_forward", duration=0.3)
+                leg_walk_forward(0.3)
 
 def read_uart_data():
     """
@@ -340,13 +340,9 @@ def read_ultrasonic_data():
                         if wheel_mode:
                             turn_right(1)
                         else:
-                            update_leg_movement_state("turn_right", duration=1)
-                    else:
-                        # Stop movement if no obstacle is detected
-                        update_leg_movement_state("stop")
+                            leg_turn_right(1)
                             
             last_check_time = current_time
-
 def leg_control_update():
 	while True:
 		with mode_lock:
