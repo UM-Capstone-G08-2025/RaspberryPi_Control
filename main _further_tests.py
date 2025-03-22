@@ -122,34 +122,52 @@ def get_distance(trig, echo):
     distance_cm = (travel_time * 34300) / 2  # 343 m/s = 34300 cm/s
     distance_inch = distance_cm * 0.3937
     return round(distance_cm, 1), round(distance_inch, 1)
+
+#Updated get distance function
 def get_distance(trig, echo):
-    """Measure distance with non-blocking timeout handling."""
+    """
+    Measure distance using event-detection callbacks with a timer.
+    Returns (distance_cm, distance_inch) or (None, None) if timeout.
+    """
+    # Dictionary to store edge timestamps
+    times = {"rising": None, "falling": None}
+    measure_done = threading.Event()  # Used to signal measurement completion
+
+    def rising_callback(channel):
+        times["rising"] = time.time()
+        # Switch to waiting for falling edge
+        GPIO.remove_event_detect(echo)
+        GPIO.add_event_detect(echo, GPIO.FALLING, callback=falling_callback)
+    
+    def falling_callback(channel):
+        times["falling"] = time.time()
+        measure_done.set()  # Signal that measurement is complete
+        GPIO.remove_event_detect(echo)
+
+    # Ensure no prior events are registered on the echo pin
+    GPIO.remove_event_detect(echo)
+
+    # Send trigger pulse
     GPIO.output(trig, True)
     time.sleep(0.00001)
     GPIO.output(trig, False)
 
-    # Wait for echo to go HIGH with timeout
-    timeout_start = time.time()
-    while GPIO.input(echo) == 0:
-        if time.time() - timeout_start > TIMEOUT:
-            return (None, None)
-        time.sleep(0.0001)  # Tiny sleep to yield CPU
+    # Start with rising edge detection
+    GPIO.add_event_detect(echo, GPIO.RISING, callback=rising_callback)
 
-    start_time = time.time()
-    
-    # Wait for echo to go LOW with timeout
-    timeout_start = time.time()
-    while GPIO.input(echo) == 1:
-        if time.time() - timeout_start > TIMEOUT:
-            return (None, None)
-        time.sleep(0.0001)  # Tiny sleep to yield CPU
+    # Wait for the measurement to complete (using global TIMEOUT)
+    if not measure_done.wait(timeout=TIMEOUT):
+        GPIO.remove_event_detect(echo)
+        return (None, None)
 
-    end_time = time.time()
-    
-    pulse_duration = end_time - start_time
-    distance_cm = round((pulse_duration * 34300) / 2, 1)
-    distance_inch = round(distance_cm * 0.3937, 1)
-    return (distance_cm, distance_inch)
+    # Check valid timing
+    if times["rising"] is None or times["falling"] is None:
+        return (None, None)
+
+    travel_time = times["falling"] - times["rising"]
+    distance_cm = (travel_time * 34300) / 2  # Speed of sound: 34300 cm/s
+    distance_inch = distance_cm * 0.3937
+    return round(distance_cm, 1), round(distance_inch, 1)
 
 # Non-blocking wheel movement functions
 def move_forward(duration):
@@ -407,6 +425,34 @@ def main():
         print("Exiting program...")
     finally:
         cleanup()
+
+#updated main function
+def main():
+    # Create threads for UART, ultrasonic data reading, and toggle switch control
+    uart_thread = threading.Thread(target=read_uart_data, daemon=True)
+    ultrasonic_thread = threading.Thread(target=read_ultrasonic_data, daemon=True)
+    toggle_thread = threading.Thread(target=toggle_switch_control, daemon=True)
+    leg_update_thread = threading.Thread(target=leg_control_update, daemon=True)
+
+    # Start the threads
+    uart_thread.start()
+    ultrasonic_thread.start()
+    toggle_thread.start()
+    leg_update_thread.start()
+
+    try:
+        # Keep the main thread running while the others handle their tasks
+        uart_thread.join()
+        ultrasonic_thread.join()
+        toggle_thread.join()
+        leg_update_thread.join()  # Corrected this line
+    except KeyboardInterrupt:
+        print("Exiting program...")
+    finally:
+        cleanup()
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
